@@ -4,14 +4,15 @@ from tkinter import ttk, messagebox, filedialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 
-# Funcție helper pentru actualizarea unui Entry din slider
 def update_entry(entry, value):
+    """Actualizează Entry-ul cu valoarea venită de la slider."""
     entry.delete(0, tk.END)
     entry.insert(0, f"{float(value):.2f}")
 
-# Widget personalizat pentru switch-ul de polaritate
+# --- Butonul de polaritate
 class PolaritySwitch(tk.Canvas):
-    def __init__(self, parent, initial="south", width=40, height=20, **kwargs):
+    def __init__(self, parent, initial="south", width=80, height=40, **kwargs):
+        
         super().__init__(parent, width=width, height=height, highlightthickness=0, **kwargs)
         self.width = width
         self.height = height
@@ -21,18 +22,21 @@ class PolaritySwitch(tk.Canvas):
 
     def draw_switch(self):
         self.delete("all")
+        # Fontul îl facem ceva mai mic, ex. 7
+        font_cfg = ("Arial", 7, "bold")
+
         if self.value == "north":
             # Partea de sus albastră, partea de jos gri
             self.create_rectangle(0, 0, self.width, self.height/2, fill="blue", outline="")
             self.create_rectangle(0, self.height/2, self.width, self.height, fill="grey", outline="")
-            self.create_text(self.width/2, self.height/4, text="NORD", fill="white", font=("Arial", 8))
-            self.create_text(self.width/2, 3*self.height/4, text="SUD", fill="black", font=("Arial", 8))
+            self.create_text(self.width/2, self.height/4, text="NORD", fill="white", font=font_cfg)
+            self.create_text(self.width/2, 3*self.height/4, text="SUD", fill="black", font=font_cfg)
         else:
             # Partea de sus gri, partea de jos roșie
             self.create_rectangle(0, 0, self.width, self.height/2, fill="grey", outline="")
             self.create_rectangle(0, self.height/2, self.width, self.height, fill="red", outline="")
-            self.create_text(self.width/2, self.height/4, text="NORD", fill="black", font=("Arial", 8))
-            self.create_text(self.width/2, 3*self.height/4, text="SUD", fill="white", font=("Arial", 8))
+            self.create_text(self.width/2, self.height/4, text="NORD", fill="black", font=font_cfg)
+            self.create_text(self.width/2, 3*self.height/4, text="SUD", fill="white", font=font_cfg)
 
     def toggle(self, event=None):
         self.value = "north" if self.value == "south" else "south"
@@ -40,23 +44,21 @@ class PolaritySwitch(tk.Canvas):
         if hasattr(self, "command") and callable(self.command):
             self.command(self.value)
 
-# Clasa pentru fiecare magnet
 class Magnet:
     def __init__(self, distance=10.0, k=2e4, phi=0.0, polarity='south'):
-        self.distance = distance  # dacă este 10, magnetul este "ascuns"
+        self.distance = distance
         self.k = k
         self.phi = phi
-        self.polarity = polarity  # "south" sau "north"
-        self.show_vector = True   # Controlează vizibilitatea vectorului
+        self.polarity = polarity
+        self.show_vector = True
 
-# Clasa aplicației
 class App:
     def __init__(self, master):
         self.master = master
         self.running = False
 
         # Parametrii de simulare
-        self.dt = 0.05   # pasul de timp [s]
+        self.dt = 0.05
         self.mass = 0.1
         self.length = 0.5
         self.damping = 0.25
@@ -69,19 +71,19 @@ class App:
         self.theta = self.initial_theta
         self.omega = self.initial_omega
 
-        # Variabile pentru parametrii (folosite în UI)
+        # Variabile pentru UI
         self.mass_var = tk.DoubleVar(value=self.mass)
         self.length_var = tk.DoubleVar(value=self.length)
         self.damping_var = tk.DoubleVar(value=self.damping)
         self.theta_var = tk.DoubleVar(value=self.initial_theta * 180/np.pi)
         self.omega_var = tk.DoubleVar(value=self.initial_omega)
-        self.dt_var = tk.DoubleVar(value=self.dt)  # slider pentru viteza animației
+        self.dt_var = tk.DoubleVar(value=self.dt)
 
-        # Lista de magneți (10 predefiniți, inițial inactivi)
+        # Magneți (10 predefiniți, inactivi)
         self.magnets = [Magnet(distance=10.0, k=2e4, phi=0.0, polarity='south') for _ in range(10)]
-        self.active_magnets = 0  # 0 magneți la start
+        self.active_magnets = 0
 
-        # Variabile pentru vizibilitatea vectorilor
+        # Vizibilitate vectori
         self.show_grav = tk.BooleanVar(value=True)
         self.show_damp = tk.BooleanVar(value=True)
         self.show_iner = tk.BooleanVar(value=True)
@@ -110,25 +112,23 @@ class App:
         self.master.rowconfigure(0, weight=0)
         self.master.rowconfigure(1, weight=1)
 
-        # Cadru superior: controale, legendă, grafic energii
+        # Cadru superior
         top_frame = ttk.Frame(self.master, padding=10)
         top_frame.grid(row=0, column=0, sticky="ew")
         top_frame.columnconfigure(0, weight=1)
         top_frame.columnconfigure(1, weight=1)
         top_frame.columnconfigure(2, weight=1)
 
-        # Panou de control (stânga)
+        # Panou control
         self.controls_frame = ttk.Labelframe(top_frame, text="Control Pendul", padding=10)
         self.controls_frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-        # Parametrii: M, L, damping, unghi, viteză
+        # Parametrii
         self.create_param_control(self.controls_frame, "Masa [kg]:", self.mass_var, 0, 0.01, 5.0)
         self.create_param_control(self.controls_frame, "Lungime [m]:", self.length_var, 1, 0.1, 5.0)
         self.create_param_control(self.controls_frame, "Coef. amortizare:", self.damping_var, 2, 0.0, 1.0)
         self.create_param_control(self.controls_frame, "Unghi start [°]:", self.theta_var, 3, -180, 180)
         self.create_param_control(self.controls_frame, "Viteza inițială [rad/s]:", self.omega_var, 4, -10, 10)
-
-        # Parametru suplimentar: dt (viteza animației)
         self.create_param_control(self.controls_frame, "Viteză animație (dt):", self.dt_var, 5, 0.01, 0.2)
 
         # Butoane Start, Pauză, Stop, Save
@@ -143,7 +143,7 @@ class App:
         self.save_button = ttk.Button(btn_frame, text="Save Snapshot", command=self.save_snapshot)
         self.save_button.grid(row=0, column=3, padx=2)
 
-        # Controale pentru magneți
+        # Magneți
         ttk.Label(self.controls_frame, text="Magneți:").grid(row=7, column=0, columnspan=3, pady=(10, 0))
         magnet_buttons = ttk.Frame(self.controls_frame)
         magnet_buttons.grid(row=8, column=0, columnspan=3, pady=2)
@@ -152,33 +152,32 @@ class App:
         self.mag_minus_button = ttk.Button(magnet_buttons, text="-", command=self.remove_magnet)
         self.mag_minus_button.grid(row=0, column=1, padx=2)
 
-        # Parametrii individuali ai magneților
         self.magnet_params_frame = ttk.Frame(self.controls_frame)
         self.magnet_params_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=5)
         self.update_magnet_controls()
 
-        # Panou legendă (centru)
+        # Legendă
         self.legend_frame = ttk.Labelframe(top_frame, text="Legenda vectorilor", padding=10)
         self.legend_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
-        # Forța gravitațională
+
         grav_canvas = tk.Canvas(self.legend_frame, width=20, height=20)
         grav_canvas.create_rectangle(0, 0, 20, 20, fill="yellow", outline="")
         grav_canvas.grid(row=0, column=0, padx=2)
         ttk.Checkbutton(self.legend_frame, text="Forța gravitațională", variable=self.show_grav,
                         command=self.update_display).grid(row=0, column=1, sticky="w")
-        # Forța de amortizare
+
         damp_canvas = tk.Canvas(self.legend_frame, width=20, height=20)
         damp_canvas.create_rectangle(0, 0, 20, 20, fill="green", outline="")
         damp_canvas.grid(row=1, column=0, padx=2)
         ttk.Checkbutton(self.legend_frame, text="Forța de amortizare", variable=self.show_damp,
                         command=self.update_display).grid(row=1, column=1, sticky="w")
-        # Forța inerțială
+
         iner_canvas = tk.Canvas(self.legend_frame, width=20, height=20)
         iner_canvas.create_rectangle(0, 0, 20, 20, fill="magenta", outline="")
         iner_canvas.grid(row=2, column=0, padx=2)
         ttk.Checkbutton(self.legend_frame, text="Forța inerțială", variable=self.show_iner,
                         command=self.update_display).grid(row=2, column=1, sticky="w")
-        # Forțele magnetice
+
         mag_canvas = tk.Canvas(self.legend_frame, width=20, height=20)
         mag_canvas.create_rectangle(0, 0, 10, 20, fill="red", outline="")
         mag_canvas.create_rectangle(10, 0, 20, 20, fill="blue", outline="")
@@ -186,11 +185,11 @@ class App:
         ttk.Checkbutton(self.legend_frame, text="Forțele magnetice", variable=self.show_magnetic,
                         command=self.update_display).grid(row=3, column=1, sticky="w")
 
-        # Panou pentru graficul energiilor (dreapta)
+        # Panou grafic energii
         self.energy_frame = ttk.Labelframe(top_frame, text="Grafic Energetic", padding=10)
         self.energy_frame.grid(row=0, column=2, sticky="nsew", padx=5, pady=5)
 
-        # Panou pentru animație (jos)
+        # Panou animație
         self.anim_frame = ttk.Frame(self.master, padding=10)
         self.anim_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
@@ -198,20 +197,27 @@ class App:
         """Creează un control (label, entry, slider cu min și max) pentru un parametru."""
         frame = ttk.Frame(parent)
         frame.grid(row=row, column=0, columnspan=3, sticky="ew", pady=2)
-        ttk.Label(frame, text=label_text).grid(row=0, column=0, sticky="w")
+
+        # Label cu lățime fixă mai mare, pentru aliniere frumoasă
+        label = ttk.Label(frame, text=label_text, width=22)
+        label.grid(row=0, column=0, sticky="w", padx=(0, 10))
+
+        # Entry pentru introducere directă
         entry = ttk.Entry(frame, textvariable=var, width=8)
         entry.grid(row=0, column=1, sticky="w")
+
+        # Frame pentru slider + min_label + max_label
         slider_frame = ttk.Frame(frame)
         slider_frame.grid(row=0, column=2, sticky="ew", padx=5)
-        # Eticheta stânga (min)
+
         min_label = ttk.Label(slider_frame, text=str(min_val))
         min_label.grid(row=0, column=0, sticky="w")
-        # Slider
+
         slider = ttk.Scale(slider_frame, from_=min_val, to=max_val, orient="horizontal", variable=var,
                            command=lambda v, e=entry: update_entry(e, v))
         slider.grid(row=0, column=1, sticky="ew")
         slider_frame.columnconfigure(1, weight=1)
-        # Eticheta dreapta (max)
+
         max_label = ttk.Label(slider_frame, text=str(max_val))
         max_label.grid(row=0, column=2, sticky="e")
 
@@ -238,15 +244,15 @@ class App:
             slider_frame.columnconfigure(1, weight=1)
             ttk.Label(slider_frame, text="5.0").grid(row=0, column=2, sticky="e")
 
-            # k
+            # k (min 1e2)
             k_var = tk.DoubleVar(value=self.magnets[i].k)
             ttk.Label(frame, text="K:").grid(row=2, column=0, sticky="w")
             k_entry = ttk.Entry(frame, textvariable=k_var, width=6)
             k_entry.grid(row=2, column=1, sticky="w")
             slider_frame2 = ttk.Frame(frame)
             slider_frame2.grid(row=2, column=2, sticky="ew", padx=2)
-            ttk.Label(slider_frame2, text="1e3").grid(row=0, column=0, sticky="w")
-            k_slider = ttk.Scale(slider_frame2, from_=1e3, to=1e5, orient="horizontal", variable=k_var,
+            ttk.Label(slider_frame2, text="1e2").grid(row=0, column=0, sticky="w")
+            k_slider = ttk.Scale(slider_frame2, from_=1e2, to=1e5, orient="horizontal", variable=k_var,
                                  command=lambda v, e=k_entry: update_entry(e, v))
             k_slider.grid(row=0, column=1, sticky="ew")
             slider_frame2.columnconfigure(1, weight=1)
@@ -268,9 +274,8 @@ class App:
 
             # Switch polaritate + checkbutton vector
             row_switch = 4
-            pol_label = ttk.Label(frame, text="Polaritate:")
-            pol_label.grid(row=row_switch, column=0, sticky="w")
-            pol_switch = PolaritySwitch(frame, initial=self.magnets[i].polarity)
+            ttk.Label(frame, text="Polaritate:").grid(row=row_switch, column=0, sticky="w")
+            pol_switch = PolaritySwitch(frame, initial=self.magnets[i].polarity, width=60, height=30)
             pol_switch.grid(row=row_switch, column=1, padx=5)
             pol_switch.command = lambda val, idx=i: self.set_magnet_polarity(idx, val)
 
@@ -334,25 +339,35 @@ class App:
         self.canvas_energy.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         x_bob = self.length * np.sin(self.theta)
-        y_bob = -self.length * np.cos(self.theta)
+        y_bob = - self.length * np.cos(self.theta)
         self.pendulum_line, = self.ax_anim.plot([0, x_bob], [0, y_bob], 'b-', linewidth=2)
-        self.bob_marker, = self.ax_anim.plot(x_bob, y_bob, 'bo', markersize=8)
-        self.quiv_grav = self.ax_anim.quiver(x_bob, y_bob, 0, 0, color='yellow', angles='xy', scale_units='xy', scale=1)
-        self.quiv_damp = self.ax_anim.quiver(x_bob, y_bob, 0, 0, color='green', angles='xy', scale_units='xy', scale=1)
-        self.quiv_iner = self.ax_anim.quiver(x_bob, y_bob, 0, 0, color='magenta', angles='xy', scale_units='xy', scale=1)
+
+        # Marker bob (folosește liste)
+        self.bob_marker, = self.ax_anim.plot([x_bob], [y_bob], 'bo', markersize=8)
+
+        self.quiv_grav = self.ax_anim.quiver(x_bob, y_bob, 0, 0,
+                                             color='yellow', angles='xy', scale_units='xy', scale=1)
+        self.quiv_damp = self.ax_anim.quiver(x_bob, y_bob, 0, 0,
+                                             color='green', angles='xy', scale_units='xy', scale=1)
+        self.quiv_iner = self.ax_anim.quiver(x_bob, y_bob, 0, 0,
+                                             color='magenta', angles='xy', scale_units='xy', scale=1)
+
         self.magnet_arrows = []
         for i in range(self.active_magnets):
             mag = self.magnets[i]
             color = 'red' if mag.polarity=='south' else 'blue'
-            q = self.ax_anim.quiver(x_bob, y_bob, 0, 0, color=color, angles='xy', scale_units='xy', scale=1)
+            q = self.ax_anim.quiver(x_bob, y_bob, 0, 0, color=color,
+                                    angles='xy', scale_units='xy', scale=1)
             self.magnet_arrows.append(q)
-        self.pivot_marker, = self.ax_anim.plot(0, 0, 'ko', markersize=10)
+
+        self.pivot_marker, = self.ax_anim.plot([0], [0], 'ko', markersize=10)
+
         self.magnet_markers = []
         for i in range(len(self.magnets)):
             phi_rad = np.deg2rad(self.magnets[i].phi)
             x_m = self.magnets[i].distance * np.sin(phi_rad)
-            y_m = -self.magnets[i].distance * np.cos(phi_rad)
-            marker, = self.ax_anim.plot(x_m, y_m, 'ro', markersize=12)
+            y_m = - self.magnets[i].distance * np.cos(phi_rad)
+            marker, = self.ax_anim.plot([x_m], [y_m], 'ro', markersize=12)
             marker.set_visible(i < self.active_magnets)
             marker.set_color('red' if self.magnets[i].polarity=='south' else 'blue')
             self.magnet_markers.append(marker)
@@ -389,7 +404,7 @@ class App:
         return (U_plus - U_minus)/(2*eps)
 
     def update_display(self):
-        # Actualizăm valorile parametri
+        # Actualizăm valorile parametrilor
         self.mass = float(self.mass_var.get())
         self.length = float(self.length_var.get())
         self.damping = float(self.damping_var.get())
@@ -397,8 +412,12 @@ class App:
 
         x_bob = self.length*np.sin(self.theta)
         y_bob = -self.length*np.cos(self.theta)
-        self.pendulum_line.set_data([0,x_bob],[0,y_bob])
-        self.bob_marker.set_data(x_bob,y_bob)
+
+        # Actualizare linie pendul
+        self.pendulum_line.set_data([0, x_bob], [0, y_bob])
+
+        # Actualizare marker bob
+        self.bob_marker.set_data([x_bob], [y_bob])
 
         # Forțe
         scale = 0.5
@@ -423,6 +442,7 @@ class App:
             theta, omega = state
             dU_dtheta = self.compute_dU_dtheta(theta)
             return np.array([omega, - dU_dtheta/(self.mass*self.length**2) - self.damping*omega])
+
         state = np.array([self.theta, self.omega])
         angular_acc = f(state)[1]
         F_iner = self.mass*self.length*angular_acc*tangent
@@ -440,14 +460,14 @@ class App:
                 phi_rad = np.deg2rad(mag.phi)
                 x_m = mag.distance*np.sin(phi_rad)
                 y_m = -mag.distance*np.cos(phi_rad)
-                self.magnet_markers[i].set_data(x_m,y_m)
+                self.magnet_markers[i].set_data([x_m], [y_m])
                 self.magnet_markers[i].set_visible(True)
                 self.magnet_markers[i].set_color('red' if mag.polarity=='south' else 'blue')
             else:
                 self.magnet_markers[i].set_visible(False)
 
             if i < self.active_magnets:
-                # Citim valorile actuale din slider/entry
+                # Citim valorile actuale
                 try:
                     mag.distance = float(self.magnet_controls[i]['dist_var'].get())
                     mag.k = float(self.magnet_controls[i]['k_var'].get())
@@ -457,17 +477,18 @@ class App:
                 phi_rad = np.deg2rad(mag.phi)
                 x_m = mag.distance*np.sin(phi_rad)
                 y_m = -mag.distance*np.cos(phi_rad)
-                r = np.sqrt(self.length**2 + mag.distance**2 - 2*self.length*mag.distance*np.cos(self.theta - phi_rad))
-                F_mag = - (self.mu0/(4*np.pi))*(mag.k/(r**4))*(3*np.cos(self.theta-phi_rad)**2 - 1)
-                bob_pos = np.array([x_bob,y_bob])
-                magnet_pos = np.array([x_m,y_m])
+                r = np.sqrt(self.length**2 + mag.distance**2
+                            - 2*self.length*mag.distance*np.cos(self.theta - phi_rad))
+                F_mag = - (self.mu0/(4*np.pi))*(mag.k/(r**4))*(3*np.cos(self.theta - phi_rad)**2 - 1)
+                if mag.polarity=='north':
+                    F_mag *= -1
+                bob_pos = np.array([x_bob, y_bob])
+                magnet_pos = np.array([x_m, y_m])
                 dir_vec = magnet_pos - bob_pos
                 norm_dir = np.linalg.norm(dir_vec)
-                unit_dir = dir_vec/norm_dir if norm_dir!=0 else np.array([0,0])
-                if mag.polarity=='north':
-                    arrow = - unit_dir*abs(F_mag)
-                else:
-                    arrow = unit_dir*abs(F_mag)
+                unit_dir = dir_vec/norm_dir if norm_dir != 0 else np.array([0, 0])
+                arrow = unit_dir*abs(F_mag) if mag.polarity=='south' else -unit_dir*abs(F_mag)
+
                 if i < len(self.magnet_arrows):
                     q = self.magnet_arrows[i]
                     q.set_color('red' if mag.polarity=='south' else 'blue')
@@ -490,7 +511,8 @@ class App:
         for i in range(self.active_magnets):
             mag = self.magnets[i]
             phi_rad = np.deg2rad(mag.phi)
-            r_arr = np.sqrt(self.length**2 + mag.distance**2 - 2*self.length*mag.distance*np.cos(theta_arr - phi_rad))
+            r_arr = np.sqrt(self.length**2 + mag.distance**2
+                            - 2*self.length*mag.distance*np.cos(theta_arr - phi_rad))
             U_i_arr = - (self.mu0/(4*np.pi))*(mag.k/(r_arr**3))*(3*np.cos(theta_arr - phi_rad)**2 - 1)
             if mag.polarity=='north':
                 U_i_arr *= -1
@@ -499,8 +521,9 @@ class App:
         self.energy_line_total.set_data(theta_arr*180/np.pi, U_total_arr)
         self.energy_line_grav.set_data(theta_arr*180/np.pi, U_grav_arr)
         self.energy_line_mag.set_data(theta_arr*180/np.pi, U_mag_arr)
+        # Marker curent
         _, _, U_total_curr = self.compute_energy(self.theta)
-        self.energy_marker.set_data([self.theta*180/np.pi],[U_total_curr])
+        self.energy_marker.set_data([self.theta*180/np.pi], [U_total_curr])
         self.ax_energy.relim()
         self.ax_energy.autoscale_view()
         self.canvas_energy.draw()
@@ -508,14 +531,13 @@ class App:
     def sim_step(self):
         if not self.running:
             return
-        # Citim dt la fiecare pas, pentru a putea fi modificat din slider
         self.dt = float(self.dt_var.get())
 
         def f(state):
             theta, omega = state
             dU_dtheta = self.compute_dU_dtheta(theta)
             return np.array([omega, - dU_dtheta/(self.mass*self.length**2) - self.damping*omega])
-        state = np.array([self.theta,self.omega])
+        state = np.array([self.theta, self.omega])
         k1 = f(state)
         k2 = f(state + 0.5*self.dt*k1)
         k3 = f(state + 0.5*self.dt*k2)
